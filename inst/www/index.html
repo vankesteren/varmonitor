@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <title>Monitor</title>
+    <link rel="stylesheet" href="style.css"> 
+    <script type="text/javascript" src="/lib/d3.min.js"></script>
+    <script type="text/javascript" src="/lib/realtimechart.js"></script>
+</head>
+<body style="margin: 0; padding: 1rem;">
+    <div id="slots"></div>
+    <script>
+        // 
+        var rtp = {};
+        rtp.options = {
+            maxlength: 150
+        };
+        rtp.container = d3.select("#slots");
+        rtp.chart     = realTimeLineChart();
+        rtp.slotkeys  = [];
+        rtp.slotnodes = {};
+        rtp.slotdata  = {};
+
+        rtp.create_slot = function(name) {
+            rtp.slotdata[name] = [];
+            var slot = 
+                rtp.container
+                    .append("div")
+                    .attr("class", "slot");
+            var slottitle  = 
+                slot.append("p")
+                    .attr("class", "title")
+                    .html(name);
+            var slotvalue =
+                slot.append("p")
+                    .attr("class", "value")
+            var slotgraph = 
+                slot.append("div")
+                    .attr("id", name)
+                    .attr("class", "graph");
+            rtp.slotkeys.push(name);
+            rtp.slotnodes[name] = slot;
+        }
+
+        rtp.remove_slot = function(name) {
+            rtp.slotnodes[name].node().parentNode.remove();
+            rtp.slotkeys.pop(name);
+            delete rtp.slotdata[name];
+            delete rtp.slotnodes[name];
+        }
+
+        rtp.update_slot = function(name, value) {
+            // add datapoint to data
+            let datapoint = {
+                time: new Date, 
+                y: value
+            }
+            rtp.slotdata[name].push(datapoint);
+            if (rtp.slotdata[name].length > rtp.options.maxlength) {
+                rtp.slotdata[name].shift();
+            }
+
+
+            // create title
+            rtp.slotnodes[name]
+                .select(".value")
+                .html(datapoint.y)
+            // create plot
+            rtp.slotnodes[name]
+                .select(".graph")
+                .datum(rtp.slotdata[name])
+                .call(rtp.chart)
+
+        
+
+            // // update output based on data
+            // let data = rtp.slotdata[name].map((pt) => pt.y);
+            // let sum = data.reduce((a, b) => a + b, 0);
+            // let mean = sum / data.length;
+            // let sdat = data.map((d) => d - mean);
+            // let sqr  = sdat.map((d) => d*d);
+            // let ssqr = sqr.reduce((a, b) => a + b, 0);
+            // let vari = Math.round(ssqr / data.length * 10000) / 10000;
+            
+            // rtp.slotnodes[name].html(
+            //     "Time: " + datapoint.time.toLocaleTimeString() + 
+            //     "<br/>y:&nbsp;&nbsp;&nbsp;&nbsp;" + datapoint.y +
+            //     "<br/>var:&nbsp;&nbsp;" + vari
+            // )
+        }
+        
+        // Connect the websocket when the page loads
+        rtp.socket = new WebSocket("ws://localhost:9234");
+        rtp.socket.onmessage = (event) => {
+            let data  = JSON.parse(event.data);
+            console.log(data);
+            let key   = Object.keys(data)[0]
+            let value = data[key][0]
+            if (key === ".__create_slot__") {
+                rtp.create_slot(value);
+            } else if (key === ".__remove_slot__") {
+                rtp.remove_slot(value)
+            } else if (rtp.slotkeys.includes(key)) {
+                rtp.update_slot(key, value);
+            }
+        }
+    </script>
+</body>
+</html>
