@@ -7,105 +7,126 @@
     <title>Monitor</title>
     <link rel="stylesheet" href="style.css"> 
     <script type="text/javascript" src="/lib/d3.min.js"></script>
+    <script type="text/javascript" src="/lib/monitor_chart.js"></script>
     <script type="text/javascript" src="/lib/realtimechart.js"></script>
 </head>
 <body style="margin: 0; padding: 1rem;">
     <div id="slots"></div>
     <script>
-        // 
-        var rtp = {};
-        rtp.options = {
-            maxlength: 150
+        // monitor object
+        var mtr = {};
+        
+        // slots
+        mtr.options = {
+            maxlength : 150,
+            sizing    : "static",
+            xaxis     : "number",
+            margin    : {top: 20, right: 10, bottom: 20, left: 50},
+            width     : 450,
+            height    : 200,
+            duration  : 500,
+            color     : "00008b"
         };
-        rtp.container = d3.select("#slots");
-        rtp.chart     = realTimeLineChart();
-        rtp.slotkeys  = [];
-        rtp.slotnodes = {};
-        rtp.slotdata  = {};
+        mtr.container = d3.select("#slots");
+        mtr.chart     = monitor_chart;
+        mtr.slotkeys  = [];
+        mtr.slotnodes = {};
+        mtr.slotdata  = {};
 
-        rtp.create_slot = function(name) {
-            rtp.slotdata[name] = [];
+        // functions
+        mtr.create_slot = function(name) {
+            mtr.slotdata[name] = [];
             var slot = 
-                rtp.container
+                mtr.container
                     .append("div")
-                    .attr("class", "slot");
+                    .classed("slot", true);
+            if (mtr.options.sizing === "dynamic") {
+                slot = slot.classed("dynamic", true);
+            }
             var slottitle  = 
                 slot.append("p")
-                    .attr("class", "title")
+                    .classed("title", true)
                     .html(name);
             var slotvalue =
                 slot.append("p")
-                    .attr("class", "value")
+                    .classed("value", true)
             var slotgraph = 
                 slot.append("div")
+                    .classed("graph-container", true)
+                    .append("div")
                     .attr("id", name)
-                    .attr("class", "graph");
-            rtp.slotkeys.push(name);
-            rtp.slotnodes[name] = slot;
+                    .classed("graph", true);
+            mtr.slotkeys.push(name);
+            mtr.slotnodes[name] = slot;
         }
 
-        rtp.remove_slot = function(name) {
-            rtp.slotnodes[name].node().parentNode.remove();
-            rtp.slotkeys.pop(name);
-            delete rtp.slotdata[name];
-            delete rtp.slotnodes[name];
+        mtr.remove_slot = function(name) {
+            mtr.slotnodes[name].node().parentNode.remove();
+            mtr.slotkeys.pop(name);
+            delete mtr.slotdata[name];
+            delete mtr.slotnodes[name];
         }
 
-        rtp.update_slot = function(name, value) {
+        mtr.update_slot = function(name, value) {
             // add datapoint to data
             let datapoint = {
                 time: new Date, 
                 y: value
             }
-            rtp.slotdata[name].push(datapoint);
-            if (rtp.slotdata[name].length > rtp.options.maxlength) {
-                rtp.slotdata[name].shift();
+
+            // keep a maximum number of datapoints in memory
+            mtr.slotdata[name].push(datapoint);
+            if (mtr.slotdata[name].length > mtr.options.maxlength) {
+                mtr.slotdata[name].shift();
             }
 
-
             // create title
-            rtp.slotnodes[name]
+            mtr.slotnodes[name]
                 .select(".value")
                 .html(datapoint.y)
             // create plot
-            rtp.slotnodes[name]
+            mtr.slotnodes[name]
                 .select(".graph")
-                .datum(rtp.slotdata[name])
-                .call(rtp.chart)
+                .datum(mtr.slotdata[name])
+                .call(mtr.chart)
+        }
 
-        
-
-            // // update output based on data
-            // let data = rtp.slotdata[name].map((pt) => pt.y);
-            // let sum = data.reduce((a, b) => a + b, 0);
-            // let mean = sum / data.length;
-            // let sdat = data.map((d) => d - mean);
-            // let sqr  = sdat.map((d) => d*d);
-            // let ssqr = sqr.reduce((a, b) => a + b, 0);
-            // let vari = Math.round(ssqr / data.length * 10000) / 10000;
-            
-            // rtp.slotnodes[name].html(
-            //     "Time: " + datapoint.time.toLocaleTimeString() + 
-            //     "<br/>y:&nbsp;&nbsp;&nbsp;&nbsp;" + datapoint.y +
-            //     "<br/>var:&nbsp;&nbsp;" + vari
-            // )
+        mtr.redraw = function() {
+            for (name in mtr.slotnodes) {
+                slot = mtr.slotnodes[name]
+                if (mtr.options.sizing === "dynamic") {
+                    slot.classed("dynamic", true);
+                } else {
+                    slot.classed("dynamic", false);
+                }
+                slot.select(".graph").datum(mtr.slotdata[name]).call(mtr.chart);
+            }        
         }
         
         // Connect the websocket when the page loads
-        rtp.socket = new WebSocket("ws://localhost:9234");
-        rtp.socket.onmessage = (event) => {
+        mtr.socket = new WebSocket("ws://localhost:9234");
+        mtr.socket.onmessage = (event) => {
             let data  = JSON.parse(event.data);
-            console.log(data);
-            let key   = Object.keys(data)[0]
-            let value = data[key][0]
+            let key   = Object.keys(data)[0];
+            let value = data[key];
             if (key === ".__create_slot__") {
-                rtp.create_slot(value);
+                console.log("Creating slot " + value[0]);
+                mtr.create_slot(value[0]);
             } else if (key === ".__remove_slot__") {
-                rtp.remove_slot(value)
-            } else if (rtp.slotkeys.includes(key)) {
-                rtp.update_slot(key, value);
+                console.log("Removing slot " + value[0]);
+                mtr.remove_slot(value[0]);
+            } else if (key === ".__set_option__") {
+                console.log("Updating options");
+                let subkey = Object.keys(value)[0];
+                mtr.options[subkey] = value[subkey][0];
+                console.log(subkey + " set to " + mtr.options[subkey]);
+                mtr.redraw();
+            } else if (mtr.slotkeys.includes(key)) {
+                mtr.update_slot(key, value[0]);
             }
         }
+
+        window.onresize = () => { if (mtr.options.sizing === "dynamic") mtr.redraw(); }
     </script>
 </body>
 </html>

@@ -59,6 +59,51 @@ unmonitor <- function(..., list) {
   }
 }
 
+#' Set monitor option
+#'
+#' This function controls several options for displaying variable monitor graphs
+#' in the currently opened browser window.
+#'
+#' @param length integer how many values to store per variable
+#' @param xtime true/false the x-axis scale either time or history number
+#' @param width width of each plot in pixels (min. 50)
+#' @param height height of each plot in pixels (min. 50)
+#' @param sizing static or dynamic. Dynamic autoscales the width based on window
+#'
+#' @export
+monitor_option <- function(length = 150, xtime = FALSE, width = 450,
+                           height = 200, sizing = "static") {
+  if (is.numeric(length) && length > 1 && length %% 1 == 0) {
+    set_option("maxlength", length)
+  } else {
+    stop("Enter positive integer for length.")
+  }
+
+  if (is.logical(xtime)) {
+    set_option("xaxis", ifelse(xtime, "time", "number"))
+  } else {
+    stop("Enter TRUE/FALSE for xtime.")
+  }
+
+  if (is.numeric(width) && width > 50) {
+    set_option("width", width)
+  } else {
+    stop("Enter numeric width > 50.")
+  }
+
+  if (is.numeric(height) && height > 50) {
+    set_option("height", height)
+  } else {
+    stop("Enter numeric height > 50.")
+  }
+
+  if (is.character(sizing) && sizing %in% c("static", "dynamic")) {
+    set_option("sizing", sizing)
+  } else {
+    stop("Enter \"static\" or \"dynamic\" for sizing.")
+  }
+}
+
 #' Create a function for the active binding
 #'
 #' @keywords internal
@@ -145,6 +190,18 @@ create_slot <- function(name) {
 remove_slot <- function(name) {
   li <- list(name)
   names(li) <- ".__remove_slot__"
+  msg <- jsonlite::toJSON(li)
+  if (!is.null(.GlobalEnv[[".mtr_ws"]]))
+    .GlobalEnv[[".mtr_ws"]]$send(enc2utf8(msg))
+}
+
+#' Trigger option setting
+#'
+#' @keywords internal
+set_option <- function(name, value) {
+  li <- list(list())
+  li[[1]][[name]] <- value
+  names(li) <- ".__set_option__"
   msg <- jsonlite::toJSON(li)
   if (!is.null(.GlobalEnv[[".mtr_ws"]]))
     .GlobalEnv[[".mtr_ws"]]$send(enc2utf8(msg))

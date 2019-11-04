@@ -12,10 +12,17 @@
     background-color: #FFF;
     min-width: 200px;
     margin-bottom: 0.5rem;
-    display: block;
+    display: flex;
+    flex-direction: column;
     box-shadow: 2px 5px 10px #DDDDDD;
+} 
+
+.dynamic {
+    flex: 1 1 auto;
 }
+
 .slot .title {
+    flex: 0 1 auto;
     margin-top: 0;
     margin-bottom: 0.2rem;
     font-weight: 600;
@@ -23,6 +30,7 @@
 }
 
 .slot .value {
+    flex: 0 1 auto;
     width: 100%;
     margin-top: 0;
     margin-bottom: 0.2rem;
@@ -32,11 +40,15 @@
     word-wrap: break-word;
 }
 
-.slot .graph {
+.slot .graph-container {
     width: 100%;
-    display: inline;
+    height: 100%;
+    display: inline-block;
 }
 
+.graph {
+    display: inline;
+}
 
 body {
     background: #FAFAFA;

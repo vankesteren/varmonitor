@@ -1,7 +1,7 @@
 Package: varmonitor
 Type: Package
 Title: Monitor variables in the environment
-Version: 0.1.0
+Version: 0.2.0
 Author: Erik-Jan van Kesteren
 Maintainer: Erik-Jan van Kesteren <e.vankesteren1@uu.nl>
 Description: Monitor variables in the environment in real-time in a 
